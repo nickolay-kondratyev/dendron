@@ -1,19 +1,9 @@
-# This workflow will build the plugin vsix every week night at 12:00 AM PST and
-# publish it to the VS Code Marketplace under the 'nightly' extension target.
-# This will NOT publish any packages to NPM.
-name: Publish Extension - Nightly
+name: Build Extension Artifact
 
-# See documentation on POSIX cron syntax here: https://docs.github.com/en/actions/reference/events-that-trigger-workflows#scheduled-events
-# Scheduled to run every weekday at 12:00 AM PST, which is 7:00 AM UTC Tuesday-Saturday
-on:
-  workflow_dispatch:
-  schedule:
-    - cron: "0 7 * * 1-6"
+on: workflow_dispatch
 
 jobs:
   build:
-    # Don't run this job outside of the Dendronhq organization https://github.com/prisma/prisma/issues/3539#issuecomment-690260573
-    if: github.repository_owner == 'dendronhq'
     timeout-minutes: 60
     environment: plugin-production
 
@@ -84,9 +74,9 @@ jobs:
       - name: Set Environment Variables
         run: |
           echo "DENDRON_RELEASE_VERSION=`(cat ./packages/plugin-core/package.json | jq .version -r; npx vsce show dendron.nightly --json | jq .versions[0].version -r) | sort -rn | head -n 1 | awk -F. -v OFS=. 'NF==1{print ++$NF}; NF>1{$NF=sprintf("%0*d", length($NF), ($NF+1)); print}'`-nightly" >> $GITHUB_ENV
-          echo "GOOGLE_OAUTH_CLIENT_SECRET=${{ secrets.GOOGLE_OAUTH_CLIENT_SECRET }}" >> $GITHUB_ENV
-          echo "GOOGLE_OAUTH_CLIENT_ID=${{ secrets.GOOGLE_OAUTH_CLIENT_ID }}" >> $GITHUB_ENV
-          echo "SENTRY_AUTH_TOKEN=${{ secrets.SENTRY_AUTH_TOKEN }}" >> $GITHUB_ENV
+#          echo "GOOGLE_OAUTH_CLIENT_SECRET=${{ secrets.GOOGLE_OAUTH_CLIENT_SECRET }}" >> $GITHUB_ENV
+#          echo "GOOGLE_OAUTH_CLIENT_ID=${{ secrets.GOOGLE_OAUTH_CLIENT_ID }}" >> $GITHUB_ENV
+#          echo "SENTRY_AUTH_TOKEN=${{ secrets.SENTRY_AUTH_TOKEN }}" >> $GITHUB_ENV
           echo "NODE_OPTIONS=--max_old_space_size=4096" >> $GITHUB_ENV
           echo "PUBLISHING_TARGET=${{ matrix.platform }}-${{ matrix.arch }}" >> $GITHUB_ENV
 
@@ -117,15 +107,3 @@ jobs:
           name: vsix
           path: ${{ env.VSIX_RELATIVE_PATH }}
           if-no-files-found: error
-
-      - name: Publish to VS Code Marketplace
-        env:
-          VSCE_PAT: ${{ secrets.VSCODE_PUBLISH_PWD }}
-        working-directory: ./packages/plugin-core
-        run: yarn deploy:vscode:vsix ${{ env.VSIX_FILE_NAME }}
-
-      - name: Publish to Open VSX Marketplace
-        env:
-          OVSX_PAT: ${{ secrets.VSCODIUM_PUBLISH_PWD }}
-        working-directory: ./packages/plugin-core
-        run: yarn deploy:ovsx:vsix ${{ env.VSIX_FILE_NAME }}
